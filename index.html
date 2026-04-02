@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Recorrida Crianza & Recría v3</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@0,600;0,700;0,800&display=swap" rel="stylesheet">
+<script>
+// Lazy-load libraries on demand to avoid timing/blocking issues
+const LIB_URLS={
+  jspdf:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  autotable:'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
+  xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+};
+const libLoaded={jspdf:false,autotable:false,xlsx:false};
+function loadLib(name){
+  return new Promise((res,rej)=>{
+    if(libLoaded[name])return res();
+    const s=document.createElement('script');s.src=LIB_URLS[name];
+    s.onload=()=>{libLoaded[name]=true;res()};
+    s.onerror=()=>rej(new Error('No se pudo cargar '+name));
+    document.head.appendChild(s);
+  });
+}
+async function loadPDFLibs(){await loadLib('jspdf');await loadLib('autotable')}
+async function loadXLSXLib(){await loadLib('xlsx')}
+</script>
+<style>
+:root{--bg:#F3F0EA;--card:#FFF;--pr:#1B5E3B;--prl:#2D8C5A;--prb:#D4EDDA;--ac:#C08B5C;--acd:#9A6D3E;--dn:#B71C1C;--dnb:#FDECEA;--wn:#E6A117;--wnb:#FFF8E1;--tx:#1A1A1A;--t2:#555;--t3:#999;--bd:#DDD8CF;--bl:#EBE8E2;--sh:0 1px 4px rgba(0,0,0,.06);--r:12px;--rs:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased}
+.hdr{background:linear-gradient(135deg,#0D3B22,#1B5E3B,#2D8C5A);color:#fff;padding:16px 14px 12px;position:sticky;top:0;z-index:100;box-shadow:0 4px 24px rgba(13,59,34,.35)}
+.hdr h1{font-family:'Fraunces',serif;font-size:20px;font-weight:800}
+.hdr .sub{font-size:11px;opacity:.7}
+.hdr-m{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.hdr .bg{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);padding:2px 8px;border-radius:14px;font-size:10px;font-weight:600}
+.hdr .auth{font-size:9px;opacity:.45;margin-top:6px;font-style:italic}
+.tw{background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:76px;z-index:99;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ts{display:flex;min-width:max-content}
+.t{padding:10px 12px;font-size:11px;font-weight:600;color:var(--t3);border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;white-space:nowrap;font-family:inherit}
+.t.a{color:var(--pr);border-bottom-color:var(--pr)}
+.ct{padding:12px;max-width:720px;margin:0 auto}
+.cd{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;border:1px solid var(--bl);overflow:hidden}
+.ch{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
+.ch h3{font-family:'Fraunces',serif;font-size:14px;font-weight:700}
+.ch .ar{color:var(--t3);font-size:11px;transition:transform .2s}.ch .ar.o{transform:rotate(180deg)}
+.cb{padding:0 14px 12px}
+.f{margin-bottom:10px}
+.f label{display:block;font-size:11px;font-weight:600;color:var(--t2);margin-bottom:4px}
+.f input,.f select,.f textarea{width:100%;padding:8px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:13px;font-family:inherit;background:var(--bg);color:var(--tx)}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--pr);background:#fff}
+.f textarea{resize:vertical;min-height:48px}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.sg{display:flex;gap:4px}
+.sb{flex:1;padding:8px 4px;border:2px solid var(--bd);border-radius:var(--rs);background:#fff;cursor:pointer;text-align:center;font-family:inherit;transition:.15s}
+.sb .n{font-size:16px;font-weight:700;display:block}.sb .l{font-size:9px;color:var(--t3)}
+.sb.s1{border-color:var(--pr);background:var(--prb)}.sb.s1 .n{color:var(--pr)}
+.sb.s2{border-color:var(--wn);background:var(--wnb)}.sb.s2 .n{color:var(--wn)}
+.sb.s3{border-color:var(--dn);background:var(--dnb)}.sb.s3 .n{color:var(--dn)}
+.ic{background:var(--bg);border-radius:var(--rs);padding:10px;margin-bottom:8px;border:1px solid var(--bd)}
+.ic-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ic-h h4{font-weight:700;font-size:12px;color:var(--pr)}
+.abg{font-size:10px;color:var(--acd);font-weight:600;background:rgba(192,139,92,.15);padding:2px 6px;border-radius:10px}
+.rb{background:none;border:none;color:var(--dn);cursor:pointer;font-size:15px;padding:2px}
+.ab{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;padding:10px;border:2px dashed var(--bd);border-radius:var(--rs);background:transparent;color:var(--pr);font-weight:600;font-size:12px;cursor:pointer;font-family:inherit}
+.ab:hover{border-color:var(--pr);background:var(--prb)}
+.tg{display:flex;background:var(--bg);border-radius:var(--rs);padding:2px;border:1px solid var(--bd)}
+.to{flex:1;padding:6px 8px;border:none;background:none;font-size:11px;font-weight:600;color:var(--t3);border-radius:5px;cursor:pointer;font-family:inherit}
+.to.a{background:var(--pr);color:#fff;box-shadow:var(--sh)}
+.ss{background:linear-gradient(135deg,#0D3B22,#1B5E3B);color:#fff;padding:14px;border-radius:var(--r);margin-bottom:12px;text-align:center}
+.ss .big{font-family:'Fraunces',serif;font-size:38px;font-weight:800}
+.ss .lbl{font-size:11px;opacity:.8}
+.sbc{background:rgba(255,255,255,.2);border-radius:20px;height:6px;margin-top:6px;overflow:hidden}
+.sbr{height:100%;border-radius:20px;transition:width .5s}
+.sbr.g{background:#52B788}.sbr.w{background:#E9A820}.sbr.b{background:#E5383B}
+.rs{border-left:3px solid var(--pr);padding-left:10px;margin-bottom:12px}
+.rs h4{font-family:'Fraunces',serif;font-size:13px;font-weight:700;margin-bottom:4px}
+.ri{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid var(--bl)}
+.ri:last-child{border-bottom:none}
+.ri .v{font-weight:600}.ri .v.g{color:var(--pr)}.ri .v.w{color:var(--wn)}.ri .v.b{color:var(--dn)}
+.nb{background:var(--bg);padding:7px 9px;border-radius:var(--rs);font-size:11px;color:var(--t2);margin-top:4px;white-space:pre-wrap}
+.ci{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--bl)}
+.ci:last-child{border-bottom:none}
+.ck{width:18px;height:18px;border:2px solid var(--bd);border-radius:4px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px}
+.ck.c{background:var(--pr);border-color:var(--pr);color:#fff}
+.ct-t{font-size:12px;line-height:1.3}.ct-t.c{color:var(--t3);text-decoration:line-through}
+.bsb{flex:1;padding:6px 3px;border:2px solid var(--bd);border-radius:var(--rs);background:#fff;cursor:pointer;text-align:center;font-family:inherit;font-size:10px;font-weight:600}
+.bsb.sel{border-color:var(--pr);background:var(--prb);color:var(--pr)}
+.bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--bd);padding:8px 12px;display:flex;gap:6px;z-index:100;max-width:720px;margin:0 auto}
+.btn{flex:1;padding:10px;border:none;border-radius:var(--rs);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.bp{background:var(--pr);color:#fff}.bs{background:var(--bg);color:var(--tx);border:1.5px solid var(--bd)}.be{background:var(--ac);color:#fff}
+.hi{display:flex;justify-content:space-between;align-items:center;padding:8px;background:var(--bg);border-radius:var(--rs);margin-bottom:5px;border:1px solid var(--bd)}
+.hi .inf{font-size:11px}.hi .inf strong{font-size:12px}
+.hb{display:flex;gap:3px}.hb button{padding:3px 6px;border:1px solid var(--bd);border-radius:4px;font-size:10px;cursor:pointer;background:#fff;font-family:inherit;font-weight:600}
+.sp{height:68px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:16px;padding:20px;max-width:300px;width:100%;text-align:center}
+.modal h3{font-family:'Fraunces',serif;margin-bottom:12px;font-size:16px}
+.modal .btn{display:block;width:100%;margin-bottom:6px}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.fi{animation:fi .2s ease}
+
+/* Animal clinical record table */
+.atbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+.atbl th{background:var(--pr);color:#fff;padding:5px 6px;text-align:left;font-weight:600;font-size:10px}
+.atbl td{padding:5px 6px;border-bottom:1px solid var(--bl)}
+.atbl input,.atbl select{font-size:11px;padding:4px 6px;border:1px solid var(--bd);border-radius:4px;background:var(--bg);font-family:inherit;width:100%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══ DATA ═══
+const D={
+  tab:'config',vDate:new Date().toISOString().split('T')[0],farm:'',aud:'',sys:'colectivo',
+  edadCambio:'',// age for ind→col transition in mixed
+  preparto:{
+    limpArea:0,condCorp:0,
+    proto:{recol:0,almac:0,descong:0,admin:0},
+    tCal:'',vCal:'',qCal:'',almMat:0,almMed:0,
+    checks:{desinfOmb:false,ident:false,peso:false,regNac:false,vigor:false,secado:false},
+    notas:''
+  },
+  tiempos:{
+    calostrar:'',descongelar:'',llevarAnimal:'',
+    buscarLeche:'',alimentarIndiv:'',alimentarCorral:'',
+    otros:''
+  },
+  dietaLiq:{
+    tipo:'leche',// leche|sustituto|mezcla
+    concReconst:'',// g/L for replacer
+    tomas:[{semDesde:1,semHasta:4,vecesDia:2,volToma:''},{semDesde:5,semHasta:8,vecesDia:1,volToma:''}],
+    notas:''
+  },
+  crianza:{
+    animales:[],// individual animals
+    corrales:[],// collective pens
+    limpTet:0,limpBal:0,limpTan:0,limpMang:0,almMatAlim:0,almMed:0,
+    notas:''
+  },
+  recria:{corrales:[],notas:''},
+  practicas:{desleche:'',planAlim:'',protoSan:'',regMort:'',notas:''},
+  clinica:[]// {id,caravana,diag,trat,fecha,notas}
+};
+
+const TABS=[
+  {id:'config',l:'⚙️ Config'},{id:'preparto',l:'🐄 Parto'},{id:'tiempos',l:'⏱️ Tiempos'},
+  {id:'dieta',l:'🥛 Dieta'},{id:'crianza',l:'🍼 Crianza'},{id:'recria',l:'🐂 Recría'},
+  {id:'clinica',l:'💉 Clínica'},{id:'practicas',l:'📋 Prácticas'},
+  {id:'reporte',l:'📊 Reporte'},{id:'hist',l:'💾 Historial'}
+];
+const CK={desinfOmb:'Desinfección ombligo',ident:'Identificación',peso:'Peso al nacer',regNac:'Registro nacimiento',vigor:'Evaluación vigor',secado:'Secado ternero'};
+
+// ═══ HELPERS ═══
+const sc=v=>v<=1.3?'g':v<=2.3?'w':'b';
+const sl=v=>v<=1.3?'Bueno':v<=2.3?'Regular':'Deficiente';
+const st=v=>v===1?'Limpio':v===2?'Moderado':v===3?'Muy sucio':'—';
+const dy=(a,b)=>{if(!a||!b)return null;const r=Math.floor((new Date(b)-new Date(a))/864e5);return r>=0?r:null};
+
+function allS(){
+  const s=[];const p=D.preparto;
+  [p.limpArea,p.condCorp,p.proto.recol,p.proto.almac,p.proto.descong,p.proto.admin,p.almMat,p.almMed].forEach(v=>{if(v)s.push(v)});
+  const c=D.crianza;
+  [c.limpTet,c.limpBal,c.limpTan,c.limpMang,c.almMatAlim,c.almMed].forEach(v=>{if(v)s.push(v)});
+  if(D.sys!=='colectivo')c.animales.forEach(a=>{[a.limpLugar,a.limpBalLeche,a.limpBalRac,a.agua].forEach(v=>{if(v)s.push(v)})});
+  if(D.sys!=='individual')c.corrales.forEach(x=>{[x.limp,x.agua,x.cama,x.limpCom,x.comComida].forEach(v=>{if(v)s.push(v)})});
+  D.recria.corrales.forEach(x=>{[x.bostas,x.limpBeb,x.limpAlim,x.basura,x.toses,x.aspecto].forEach(v=>{if(v)s.push(v)})});
+  return s.length?(s.reduce((a,b)=>a+b,0)/s.length).toFixed(1):0;
+}
+
+// ═══ STORAGE ═══
+function lH(){try{return JSON.parse(localStorage.getItem('rc_h3')||'[]')}catch{return[]}}
+function sH(h){localStorage.setItem('rc_h3',JSON.stringify(h))}
+
+// ═══ RENDER ═══
+function R(){
+  document.getElementById('app').innerHTML=`
+    <div class="hdr">
+      <h1>🐄 Recorrida Crianza & Recría</h1>
+      <div class="sub">Auditoría de campo v3</div>
+      <div class="hdr-m">
+        <span class="bg">📅 ${D.vDate}</span>${D.farm?`<span class="bg">🏠 ${D.farm}</span>`:''}
+        <span class="bg">${{individual:'🏠 Indiv.',colectivo:'👥 Colect.',mixto:'🔄 Mixto'}[D.sys]}</span>
+      </div>
+      <div class="auth">Desarrollo: Darío Caffarena © ${new Date().getFullYear()}</div>
+    </div>
+    <div class="tw"><div class="ts">${TABS.map(t=>`<button class="t ${D.tab===t.id?'a':''}" onclick="go('${t.id}')">${t.l}</button>`).join('')}</div></div>
+    <div class="ct fi">${rT()}</div><div class="sp"></div>${rB()}`;
+}
+
+function rT(){switch(D.tab){case'config':return rConfig();case'preparto':return rPre();case'tiempos':return rTiempos();case'dieta':return rDieta();case'crianza':return rCri();case'recria':return rRec();case'clinica':return rClin();case'practicas':return rPrac();case'reporte':return rRep();case'hist':return rHist()}}
+
+function rB(){
+  if(D.tab==='hist')return'';
+  const o=TABS.map(t=>t.id),i=o.indexOf(D.tab);
+  let h='<div class="bar">';
+  if(i>0)h+=`<button class="btn bs" onclick="go('${o[i-1]}')">←</button>`;
+  if(D.tab==='reporte')h+=`<button class="btn bp" onclick="saveR()">💾 Guardar</button><button class="btn be" onclick="showExp()">📥 Exportar</button>`;
+  else if(i<o.length-1)h+=`<button class="btn bp" onclick="go('${o[i+1]}')">Siguiente →</button>`;
+  return h+'</div>';
+}
+
+// Score buttons helper
+function SB(v,p,lb){
+  lb=lb||['Limpio','Moderado','Muy sucio'];
+  return `<div class="sg">${[1,2,3].map(n=>`<button class="sb ${v===n?'s'+n:''}" onclick="${p}=${n};R()"><span class="n">${n}</span><span class="l">${lb[n-1]}</span></button>`).join('')}</div>`;
+}
+
+// ═══ CONFIG ═══
+function rConfig(){
+  return `
+  <div class="cd"><div class="ch"><h3>Datos de la visita</h3></div><div class="cb">
+    <div class="f"><label>Fecha</label><input type="date" value="${D.vDate}" onchange="D.vDate=this.value;R()"></div>
+    <div class="fr"><div class="f"><label>Establecimiento</label><input value="${D.farm}" onchange="D.farm=this.value"></div>
+    <div class="f"><label>Auditor</label><input value="${D.aud}" onchange="D.aud=this.value"></div></div>
+  </div></div>
+  <div class="cd"><div class="ch"><h3>Sistema de crianza</h3></div><div class="cb">
+    <div class="f"><div class="tg">
+      ${['individual','colectivo','mixto'].map(s=>`<button class="to ${D.sys===s?'a':''}" onclick="D.sys='${s}';R()">${s[0].toUpperCase()+s.slice(1)}</button>`).join('')}
+    </div></div>
+    ${D.sys==='mixto'?`<div class="f"><label>Edad promedio cambio individual → colectivo (días)</label><input type="number" value="${D.edadCambio}" placeholder="Ej: 45" onchange="D.edadCambio=this.value"></div>`:''}
+  </div></div>`;
+}
+
+// ═══ PREPARTO ═══
+function rPre(){
+  const p=D.preparto;
+  return `
+  <div class="cd"><div class="ch" onclick="tg(this)"><h3>Área de Parto</h3><span class="ar o">▼</span></div><div class="cb">
+    <div class="f"><label>Limpieza área de parto</label>${SB(p.limpArea,'D.preparto.limpArea')}</div>
+    <div class="f"><label>Condición corporal</label>${SB(p.condCorp,'D.preparto.condCorp',['Buena','Regular','Mala'])}</div>
+  </div></div>
+  <div class="cd"><div class="ch" onclick="tg(this)"><h3>Protocolo Calostro</h3><span class="ar o">▼</span></div><div class="cb">
+    <div class="f"><label>Recolección</label>${SB(p.proto.recol,'D.preparto.proto.recol',['Correcto','Regular','Deficiente'])}</div>
+    <div class="f"><label>Almacenamiento</label>${SB(p.proto.almac,'D.preparto.proto.almac',['Correcto','Regular','Deficiente'])}</div>
+    <div class="f"><label>Descongelado</label>${SB(p.proto.descong,'D.preparto.proto.descong',['Correcto','Regular','Deficiente'])}</div>
+    <div class="f"><label>Administración</label>${SB(p.proto.admin,'D.preparto.proto.admin',['Correcto','Regular','Deficiente'])}</div>
+    <div class="fr3">
+      <div class="f"><label>Tiempo 1er calostrado</label><input value="${p.tCal}" placeholder="hs" onchange="D.preparto.tCal=this.value"></div>
+      <div class="f"><label>Volumen (L)</label><input value="${p.vCal}" placeholder="4" onchange="D.preparto.vCal=this.value"></div>
+      <div class="f"><label>Calidad (Brix)</label><input value="${p.qCal}" placeholder="24%" onchange="D.preparto.qCal=this.value"></div>
+    </div>
+  </div></div>
+  <div class="cd"><div class="ch" onclick="tg(this)"><h3>Almacenamiento</h3><span class="ar o">▼</span></div><div class="cb">
+    <div class="f"><label>Materiales (baldes, tetineras, tanque)</label>${SB(p.almMat,'D.preparto.almMat',['Correcto','Regular','Deficiente'])}</div>
+    <div class="f"><label>Medicamentos</label>${SB(p.almMed,'D.preparto.almMed',['Correcto','Regular','Deficiente'])}</div>
+  </div></div>
+  <div class="cd"><div class="ch" onclick="tg(this)"><h3>Primeros Cuidados</h3><span class="ar o">▼</span></div><div class="cb">
+    ${Object.entries(CK).map(([k,lb])=>`<div class="ci"><div class="ck ${p.checks[k]?'c':''}" onclick="D.preparto.checks.${k}=!D.preparto.checks.${k};R()">${p.checks[k]?'✓':''}</div><span class="ct-t ${p.checks[k]?'c':''}">${lb}</span></div>`).join('')}
+  </div></div>
+  <div class="cd"><div class="ch"><h3>Notas</h3></div><div class="cb"><div class="f"><textarea onchange="D.preparto.notas=this.value">${p.notas}</textarea></div></div></div>`;
+}
+
+// ═══ TIEMPOS ═══
+function rTiempos(){
+  const t=D.tiempos;
+  return `
+  <div class="cd"><div class="ch"><h3>⏱️ Registro de Tiempos</h3></div><div class="cb">
+    <p style="font-size:11px;color:var(--t2);margin-bottom:10px">Anotá los tiempos observados para optimizar procesos</p>
+    <div class="fr"><div class="f"><label>Calostrar un ternero (min)</label><input value="${t.calostrar}" placeholder="min" onchange="D.tiempos.calostrar=this.value"></div>
+    <div class="f"><label>Descongelar calostro (min)</label><input value="${t.descongelar}" placeholder="min" onchange="D.tiempos.descongelar=this.value"></div></div>
+    <div class="f"><label>Llevar animales al corral (min)</label><input value="${t.llevarAnimal}" placeholder="min" onchange="D.tiempos.llevarAnimal=this.value"></div>
+    <div class="fr"><div class="f"><label>Ir a buscar leche y volver (min)</label><input value="${t.buscarLeche}" placeholder="min" onchange="D.tiempos.buscarLeche=this.value"></div>
+    <div class="f"><label>Alimentar 1 ternero (min)</label><input value="${t.alimentarIndiv}" placeholder="min" onchange="D.tiempos.alimentarIndiv=this.value"></div></div>
+    <div class="f"><label>Alimentar 1 corral colectivo (min)</label><input value="${t.alimentarCorral}" placeholder="min" onchange="D.tiempos.alimentarCorral=this.value"></div>
+    <div class="f"><label>Otros tiempos / observaciones</label><textarea onchange="D.tiempos.otros=this.value">${t.otros}</textarea></div>
+  </div></div>`;
+}
+
+// ═══ DIETA LÍQUIDA ═══
+function rDieta(){
+  const d=D.dietaLiq;
+  return `
+  <div class="cd"><div class="ch"><h3>🥛 Dieta Líquida</h3></div><div class="cb">
+    <div class="f"><label>Tipo de dieta</label><div class="tg">
+      ${['leche','sustituto','mezcla'].map(s=>`<button class="to ${d.tipo===s?'a':''}" onclick="D.dietaLiq.tipo='${s}';R()">${{leche:'Leche',sustituto:'Sustituto',mezcla:'Mezcla'}[s]}</button>`).join('')}
+    </div></div>
+    ${d.tipo!=='leche'?`<div class="f"><label>Concentración reconstitución sustituto (g/L)</label><input value="${d.concReconst}" placeholder="Ej: 150 g/L" onchange="D.dietaLiq.concReconst=this.value"></div>`:''}
+  </div></div>
+  <div class="cd"><div class="ch" onclick="tg(this)"><h3>📅 Programa de Tomas por Semana</h3><span class="ar o">▼</span></div><div class="cb">
+    <p style="font-size:10px;color:var(--t2);margin-bottom:8px">Definí las tomas según la semana de vida</p>
+    ${d.tomas.map((t,i)=>`<div class="ic">
+      <div class="ic-h"><h4>Período ${i+1}</h4><button class="rb" onclick="D.dietaLiq.tomas.splice(${i},1);R()">✕</button></div>
+      <div class="fr3">
+        <div class="f"><label>Sem. desde</label><input type="number" value="${t.semDesde}" onchange="D.dietaLiq.tomas[${i}].semDesde=+this.value"></div>
+        <div class="f"><label>Sem. hasta</label><input type="number" value="${t.semHasta}" onchange="D.dietaLiq.tomas[${i}].semHasta=+this.value"></div>
+        <div class="f"><label>Veces/día</label><input type="number" value="${t.vecesDia}" onchange="D.dietaLiq.tomas[${i}].vecesDia=+this.value"></div>
+      </div>
+      <div class="f"><label>Vol. por toma (L)</label><input value="${t.volToma}" placeholder="Ej: 2.5" onchange="D.dietaLiq.tomas[${i}].volToma=this.value"></div>
+    </div>`).join('')}
+    <button class="ab" onclick="D.dietaLiq.tomas.push({semDesde:'',semHasta:'',vecesDia:2,volToma:''});R()">+ Agregar período</button>
+    <div class="f" style="margin-top:8px"><label>Notas dieta</label><textarea onchange="D.dietaLiq.notas=this.value">${d.notas}</textarea></div>
+  </div></div>`;
+}
+
+// ═══ CRIANZA ═══
+function rCri(){
+  const c=D.crianza;const sI=D.sys!=='colectivo';const sC=D.sys!=='individual';
+  let h='';
+
+  // Individual animals
+  if(sI){
+    h+=`<div class="cd"><div class="ch" onclick="tg(this)"><h3>🏠 Animales Individuales (${c.animales.length})</h3><span class="ar o">▼</span></div><div class="cb">
+    ${c.animales.map((a,i)=>`<div class="ic">
+      <div class="ic-h"><h4>${a.id||'Animal '+(i+1)}</h4><button class="rb" onclick="D.crianza.animales.splice(${i},1);R()">✕</button></div>
+      <div class="fr"><div class="f"><label>Caravana / ID</label><input value="${a.id}" onchange="D.crianza.animales[${i}].id=this.value;R()"></div>
+      <div class="f"><label>Ubicación (cuna/estaca)</label><input value="${a.ubic||''}" onchange="D.crianza.animales[${i}].ubic=this.value"></div></div>
+      <div class="f"><label>Limpieza del lugar</label>${SB(a.limpLugar,`D.crianza.animales[${i}].limpLugar`)}</div>
+      <div class="f"><label>Limpieza balde de leche</label>${SB(a.limpBalLeche,`D.crianza.animales[${i}].limpBalLeche`)}</div>
+      <div class="f"><label>Limpieza balde de ración</label>${SB(a.limpBalRac,`D.crianza.animales[${i}].limpBalRac`)}</div>
+      <div class="f"><label>¿Se le da agua?</label><div class="tg">
+        <button class="to ${a.agua===1?'a':''}" onclick="D.crianza.animales[${i}].agua=1;R()">Sí ✓</button>
+        <button class="to ${a.agua===3?'a':''}" onclick="D.crianza.animales[${i}].agua=3;R()">No ✕</button>
+      </div></div>
+      <div class="f"><label>Obs.</label><input value="${a.notas||''}" onchange="D.crianza.animales[${i}].notas=this.value"></div>
+    </div>`).join('')}
+    <button class="ab" onclick="D.crianza.animales.push({id:'',ubic:'',limpLugar:0,limpBalLeche:0,limpBalRac:0,agua:0,notas:''});R()">+ Agregar Animal</button>
+    </div></div>`;
+  }
+
+  // General materials
+  h+=`<div class="cd"><div class="ch" onclick="tg(this)"><h3>🧹 Materiales (General)</h3><span class="ar o">▼</span></div><div class="cb">
+    <div class="f"><label>Tetineras (recipiente + tetinas)</label>${SB(c.limpTet,'D.crianza.limpTet')}</div>
+    <div class="f"><label>Baldes</label>${SB(c.limpBal,'D.crianza.limpBal')}</div>
+    <div class="f"><label>Tanque de leche</label>${SB(c.limpTan,'D.crianza.limpTan')}</div>
+    <div class="f"><label>Mangueras</label>${SB(c.limpMang,'D.crianza.limpMang')}</div>
+  </div></div>`;
+  h+=`<div class="cd"><div class="ch" onclick="tg(this)"><h3>📦 Almacenamiento (General)</h3><span class="ar o">▼</span></div><div class="cb">
+    <div class="f"><label>Mat. alimentación</label>${SB(c.almMatAlim,'D.crianza.almMatAlim',['Correcto','Regular','Deficiente'])}</div>
+    <div class="f"><label>Medicamentos</label>${SB(c.almMed,'D.crianza.almMed',['Correcto','Regular','Deficiente'])}</div>
+  </div></div>`;
+
+  // Collective corrals — with feeders inside each
+  if(sC){
+    h+=`<div class="cd"><div class="ch" onclick="tg(this)"><h3>👥 Corrales Colectivos</h3><span class="ar o">▼</span></div><div class="cb">
+    ${c.corrales.map((x,i)=>{
+      const age=dy(x.fc,D.vDate);
+      return `<div class="ic">
+        <div class="ic-h"><h4>Corral ${x.id||(i+1)}</h4><div style="display:flex;gap:5px;align-items:center">${age!==null?`<span class="abg">${age}d</span>`:''}<button class="rb" onclick="D.crianza.corrales.splice(${i},1);R()">✕</button></div></div>
+        <div class="fr3"><div class="f"><label>N°/Letra</label><input value="${x.id}" onchange="D.crianza.corrales[${i}].id=this.value;R()"></div>
+        <div class="f"><label>Fecha cierre</label><input type="date" value="${x.fc}" onchange="D.crianza.corrales[${i}].fc=this.value;R()"></div>
+        <div class="f"><label>Terneros</label><input type="number" value="${x.cant||''}" onchange="D.crianza.corrales[${i}].cant=this.value"></div></div>
+        <div class="f"><label>Limpieza corral</label>${SB(x.limp,`D.crianza.corrales[${i}].limp`)}</div>
+        <div class="f"><label>Agua bebida</label>${SB(x.agua,`D.crianza.corrales[${i}].agua`)}</div>
+        <div class="f"><label>Cama / Piso</label>${SB(x.cama,`D.crianza.corrales[${i}].cama`)}</div>
+        <div class="f"><label>Limpieza comederos</label>${SB(x.limpCom,`D.crianza.corrales[${i}].limpCom`)}</div>
+        <div class="f"><label>Comederos con comida</label>${SB(x.comComida,`D.crianza.corrales[${i}].comComida`,['Sí, lleno','Algo','Lamido/vacío'])}</div>
+        <div class="f"><label>Remanente</label><div class="tg">
+          ${['>=7%','<7%','lamido'].map(v=>`<button class="to ${x.rem===v?'a':''}" onclick="D.crianza.corrales[${i}].rem='${v}';R()">${v==='>=7%'?'≥7% ✓':v==='<7%'?'<7% ⚠':'Lamido ✕'}</button>`).join('')}
+        </div></div>
+        <div class="f"><label>Obs.</label><textarea onchange="D.crianza.corrales[${i}].notas=this.value">${x.notas||''}</textarea></div>
+      </div>`;
+    }).join('')}
+    <button class="ab" onclick="D.crianza.corrales.push({id:'',fc:'',cant:'',limp:0,agua:0,cama:0,limpCom:0,comComida:0,rem:'',notas:''});R()">+ Agregar Corral</button>
+    </div></div>`;
+  }
+  h+=`<div class="cd"><div class="ch"><h3>Notas Crianza</h3></div><div class="cb"><div class="f"><textarea onchange="D.crianza.notas=this.value">${c.notas}</textarea></div></div></div>`;
+  return h;
+}
+
+// ═══ RECRÍA ═══
+function rRec(){
+  const rc=D.recria;
+  return `<div class="cd"><div class="ch" onclick="tg(this)"><h3>🐂 Corrales de Recría</h3><span class="ar o">▼</span></div><div class="cb">
+  ${rc.corrales.map((x,i)=>{
+    const dof=dy(x.fi,D.vDate);
+    const cmH=(x.com||[]).map((cm,ci)=>`<div style="display:flex;gap:4px;align-items:center;margin-bottom:3px">
+      <span style="font-size:10px;font-weight:600;min-width:55px">Com.${ci+1}</span>
+      <div style="display:flex;gap:3px;flex:1">${['<1/3','1/3-1/2','>1/2'].map(v=>`<button class="bsb ${cm===v?'sel':''}" onclick="D.recria.corrales[${i}].com[${ci}]='${v}';R()">${v}</button>`).join('')}</div>
+      <button class="rb" style="font-size:12px" onclick="D.recria.corrales[${i}].com.splice(${ci},1);R()">✕</button>
+    </div>`).join('');
+    return `<div class="ic">
+      <div class="ic-h"><h4>Corral ${x.id||(i+1)}</h4><div style="display:flex;gap:5px;align-items:center">${dof!==null?`<span class="abg">DOF:${dof}d</span>`:''}<button class="rb" onclick="D.recria.corrales.splice(${i},1);R()">✕</button></div></div>
+      <div class="fr3"><div class="f"><label>N°/Letra</label><input value="${x.id}" onchange="D.recria.corrales[${i}].id=this.value;R()"></div>
+      <div class="f"><label>Animales</label><input type="number" value="${x.cant||''}" onchange="D.recria.corrales[${i}].cant=this.value"></div>
+      <div class="f"><label>Fecha ingreso</label><input type="date" value="${x.fi||''}" onchange="D.recria.corrales[${i}].fi=this.value;R()"></div></div>
+      <div class="f"><label>Bostas</label>${SB(x.bostas,`D.recria.corrales[${i}].bostas`,['Normal','Algo sueltas','Diarrea'])}</div>
+      <div class="f"><label>Limpieza bebida</label>${SB(x.limpBeb,`D.recria.corrales[${i}].limpBeb`)}</div>
+      <div class="f"><label>Calidad alimento</label>${SB(x.limpAlim,`D.recria.corrales[${i}].limpAlim`,['Bueno','Desgranado','Polvo/malo'])}</div>
+      <div class="f"><label>Basura en corral</label>${SB(x.basura,`D.recria.corrales[${i}].basura`,['Limpio','Algo','Mucha'])}</div>
+      <div class="f"><label>Toses al mover</label>${SB(x.toses,`D.recria.corrales[${i}].toses`,['Ninguna','Algunas','Muchas'])}</div>
+      <div class="f"><label>Aspecto general</label>${SB(x.aspecto,`D.recria.corrales[${i}].aspecto`,['Bueno','Regular','Malo'])}</div>
+      <div class="f"><label>Comederos autoconsumo (${(x.com||[]).length})</label>${cmH}
+        <button class="ab" style="padding:7px;font-size:11px" onclick="if(!D.recria.corrales[${i}].com)D.recria.corrales[${i}].com=[];D.recria.corrales[${i}].com.push('');R()">+ Comedero</button>
+      </div>
+      <div class="f"><label>Obs.</label><textarea onchange="D.recria.corrales[${i}].notas=this.value">${x.notas||''}</textarea></div>
+    </div>`;
+  }).join('')}
+  <button class="ab" onclick="D.recria.corrales.push({id:'',cant:'',fi:'',bostas:0,limpBeb:0,limpAlim:0,basura:0,toses:0,aspecto:0,com:[],notas:''});R()">+ Agregar Corral Recría</button>
+  </div></div>
+  <div class="cd"><div class="ch"><h3>Notas Recría</h3></div><div class="cb"><div class="f"><textarea onchange="D.recria.notas=this.value">${rc.notas}</textarea></div></div></div>`;
+}
+
+// ═══ CLÍNICA ═══
+function rClin(){
+  return `<div class="cd"><div class="ch"><h3>💉 Registro Clínico Individual</h3></div><div class="cb">
+    <p style="font-size:10px;color:var(--t2);margin-bottom:8px">Anotá animales individuales para revisión / tratamiento</p>
+    <table class="atbl"><thead><tr><th>Caravana</th><th>Diagnóstico</th><th>Tratamiento</th><th>Notas</th><th></th></tr></thead><tbody>
+    ${D.clinica.map((c,i)=>`<tr>
+      <td><input value="${c.caravana}" onchange="D.clinica[${i}].caravana=this.value"></td>
+      <td><input value="${c.diag}" onchange="D.clinica[${i}].diag=this.value" placeholder="Diagnóstico"></td>
+      <td><input value="${c.trat}" onchange="D.clinica[${i}].trat=this.value" placeholder="Tratamiento"></td>
+      <td><input value="${c.notas||''}" onchange="D.clinica[${i}].notas=this.value"></td>
+      <td><button class="rb" onclick="D.clinica.splice(${i},1);R()">✕</button></td>
+    </tr>`).join('')}
+    </tbody></table>
+    <button class="ab" style="margin-top:6px" onclick="D.clinica.push({caravana:'',diag:'',trat:'',notas:''});R()">+ Agregar Animal</button>
+  </div></div>`;
+}
+
+// ═══ PRÁCTICAS ═══
+function rPrac(){
+  const p=D.practicas;
+  return `<div class="cd"><div class="ch"><h3>Prácticas Generales</h3></div><div class="cb">
+    <div class="f"><label>Protocolo desleche</label><textarea onchange="D.practicas.desleche=this.value">${p.desleche}</textarea></div>
+    <div class="f"><label>Plan alimentación</label><textarea onchange="D.practicas.planAlim=this.value">${p.planAlim}</textarea></div>
+    <div class="f"><label>Protocolo sanitario</label><textarea onchange="D.practicas.protoSan=this.value">${p.protoSan}</textarea></div>
+    <div class="f"><label>Mortalidad / Morbilidad</label><textarea onchange="D.practicas.regMort=this.value">${p.regMort}</textarea></div>
+    <div class="f"><label>Notas</label><textarea onchange="D.practicas.notas=this.value">${p.notas}</textarea></div>
+  </div></div>`;
+}
+
+// ═══ REPORTE ═══
+function rRep(){
+  const ov=allS(); const pct=ov>0?Math.max(5,(1-(ov-1)/2)*100):0;
+  const p=D.preparto,c=D.crianza,rc=D.recria,pr=D.practicas,t=D.tiempos,dl=D.dietaLiq;
+  const ckD=Object.values(p.checks).filter(Boolean).length,ckT=Object.keys(p.checks).length;
+
+  let h=`<div class="ss"><div class="big">${ov||'—'}</div><div class="lbl">Score General — ${ov?sl(ov):'Sin datos'}</div><div class="sbc"><div class="sbr ${sc(ov)}" style="width:${pct}%"></div></div></div>`;
+
+  // Info
+  h+=`<div class="cd"><div class="ch"><h3>📋 Visita</h3></div><div class="cb">
+    <div class="ri"><span>Fecha</span><span class="v">${D.vDate}</span></div>
+    <div class="ri"><span>Establecimiento</span><span class="v">${D.farm||'—'}</span></div>
+    <div class="ri"><span>Auditor</span><span class="v">${D.aud||'—'}</span></div>
+    <div class="ri"><span>Sistema</span><span class="v">${D.sys}${D.sys==='mixto'&&D.edadCambio?' (cambio: '+D.edadCambio+'d)':''}</span></div>
+  </div></div>`;
+
+  // Preparto
+  h+=`<div class="cd"><div class="ch"><h3>🐄 Preparto/Parto</h3></div><div class="cb">
+    <div class="rs"><h4>Limpieza & Condición</h4>
+      <div class="ri"><span>Área parto</span><span class="v ${sc(p.limpArea)}">${p.limpArea||'—'}</span></div>
+      <div class="ri"><span>Cond. corporal</span><span class="v ${sc(p.condCorp)}">${p.condCorp||'—'}</span></div>
+    </div>
+    <div class="rs"><h4>Calostro</h4>
+      ${[['recol','Recolección'],['almac','Almacenamiento'],['descong','Descongelado'],['admin','Administración']].map(([k,l])=>`<div class="ri"><span>${l}</span><span class="v ${sc(p.proto[k])}">${p.proto[k]||'—'}</span></div>`).join('')}
+      ${p.tCal?`<div class="ri"><span>Tiempo</span><span class="v">${p.tCal}</span></div>`:''}
+      ${p.vCal?`<div class="ri"><span>Volumen</span><span class="v">${p.vCal}</span></div>`:''}
+      ${p.qCal?`<div class="ri"><span>Calidad</span><span class="v">${p.qCal}</span></div>`:''}
+    </div>
+    <div class="rs"><h4>Almacenamiento</h4>
+      <div class="ri"><span>Materiales</span><span class="v ${sc(p.almMat)}">${p.almMat||'—'}</span></div>
+      <div class="ri"><span>Medicamentos</span><span class="v ${sc(p.almMed)}">${p.almMed||'—'}</span></div>
+    </div>
+    <div class="rs"><h4>Primeros Cuidados (${ckD}/${ckT})</h4>
+      ${Object.entries(CK).map(([k,l])=>`<div class="ri"><span>${l}</span><span class="v ${p.checks[k]?'g':'b'}">${p.checks[k]?'✓':'✕'}</span></div>`).join('')}
+    </div>
+    ${p.notas?`<div class="nb">📝 ${p.notas}</div>`:''}
+  </div></div>`;
+
+  // Tiempos
+  const hasT=Object.values(t).some(Boolean);
+  if(hasT){
+    h+=`<div class="cd"><div class="ch"><h3>⏱️ Tiempos</h3></div><div class="cb"><div class="rs"><h4>Tiempos Observados</h4>
+      ${t.calostrar?`<div class="ri"><span>Calostrar</span><span class="v">${t.calostrar} min</span></div>`:''}
+      ${t.descongelar?`<div class="ri"><span>Descongelar calostro</span><span class="v">${t.descongelar} min</span></div>`:''}
+      ${t.llevarAnimal?`<div class="ri"><span>Llevar animales</span><span class="v">${t.llevarAnimal} min</span></div>`:''}
+      ${t.buscarLeche?`<div class="ri"><span>Buscar leche</span><span class="v">${t.buscarLeche} min</span></div>`:''}
+      ${t.alimentarIndiv?`<div class="ri"><span>Alimentar 1 ternero</span><span class="v">${t.alimentarIndiv} min</span></div>`:''}
+      ${t.alimentarCorral?`<div class="ri"><span>Alimentar corral</span><span class="v">${t.alimentarCorral} min</span></div>`:''}
+      ${t.otros?`<div class="nb">📝 ${t.otros}</div>`:''}
+    </div></div></div>`;
+  }
+
+  // Dieta
+  h+=`<div class="cd"><div class="ch"><h3>🥛 Dieta Líquida</h3></div><div class="cb"><div class="rs"><h4>Programa</h4>
+    <div class="ri"><span>Tipo</span><span class="v">${{leche:'Leche',sustituto:'Sustituto',mezcla:'Mezcla'}[dl.tipo]}</span></div>
+    ${dl.concReconst?`<div class="ri"><span>Reconstitución</span><span class="v">${dl.concReconst}</span></div>`:''}
+    ${dl.tomas.map((tm,i)=>`<div class="ri"><span>Sem ${tm.semDesde}-${tm.semHasta}</span><span class="v">${tm.vecesDia}x/día${tm.volToma?' · '+tm.volToma+'L':''}</span></div>`).join('')}
+    ${dl.notas?`<div class="nb">📝 ${dl.notas}</div>`:''}
+  </div></div></div>`;
+
+  // Crianza
+  h+=`<div class="cd"><div class="ch"><h3>🍼 Crianza</h3></div><div class="cb">`;
+  if(D.sys!=='colectivo'&&c.animales.length){
+    h+=`<div class="rs"><h4>Animales Individuales (${c.animales.length})</h4>`;
+    // Summary
+    const iScores=[];c.animales.forEach(a=>{[a.limpLugar,a.limpBalLeche,a.limpBalRac].forEach(v=>{if(v)iScores.push(v)})});
+    if(iScores.length){const avg=(iScores.reduce((a,b)=>a+b,0)/iScores.length).toFixed(1);h+=`<div class="ri" style="font-weight:700"><span>Score promedio individual</span><span class="v ${sc(avg)}">${avg}</span></div>`}
+    const sinAgua=c.animales.filter(a=>a.agua===3).length;
+    if(sinAgua)h+=`<div class="ri"><span>Sin agua</span><span class="v b">${sinAgua} animales</span></div>`;
+    c.animales.forEach(a=>{
+      h+=`<div class="ri"><span>${a.id||'?'}${a.ubic?' ('+a.ubic+')':''}</span><span class="v">Lugar:${a.limpLugar||'—'} BLeche:${a.limpBalLeche||'—'} BRac:${a.limpBalRac||'—'} Agua:${a.agua===1?'✓':a.agua===3?'✕':'—'}</span></div>`;
+    });
+    h+=`</div>`;
+  }
+
+  h+=`<div class="rs"><h4>Materiales</h4>
+    <div class="ri"><span>Tetineras</span><span class="v ${sc(c.limpTet)}">${c.limpTet||'—'}</span></div>
+    <div class="ri"><span>Baldes</span><span class="v ${sc(c.limpBal)}">${c.limpBal||'—'}</span></div>
+    <div class="ri"><span>Tanque</span><span class="v ${sc(c.limpTan)}">${c.limpTan||'—'}</span></div>
+    <div class="ri"><span>Mangueras</span><span class="v ${sc(c.limpMang)}">${c.limpMang||'—'}</span></div>
+  </div>`;
+  h+=`<div class="rs"><h4>Almacenamiento</h4>
+    <div class="ri"><span>Mat. alimentación</span><span class="v ${sc(c.almMatAlim)}">${c.almMatAlim||'—'}</span></div>
+    <div class="ri"><span>Medicamentos</span><span class="v ${sc(c.almMed)}">${c.almMed||'—'}</span></div>
+  </div>`;
+
+  if(D.sys!=='individual'&&c.corrales.length){
+    c.corrales.forEach(x=>{
+      const age=dy(x.fc,D.vDate);
+      const vals=[x.limp,x.agua,x.cama,x.limpCom,x.comComida].filter(Boolean);
+      const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):null;
+      h+=`<div class="rs"><h4>Corral ${x.id||'?'} ${age!==null?`<span style="font-weight:400;font-size:10px;color:var(--acd)">— ${age}d</span>`:''}</h4>
+        ${x.cant?`<div class="ri"><span>Terneros</span><span class="v">${x.cant}</span></div>`:''}
+        <div class="ri"><span>Limpieza</span><span class="v ${sc(x.limp)}">${x.limp||'—'}</span></div>
+        <div class="ri"><span>Agua</span><span class="v ${sc(x.agua)}">${x.agua||'—'}</span></div>
+        <div class="ri"><span>Cama</span><span class="v ${sc(x.cama)}">${x.cama||'—'}</span></div>
+        <div class="ri"><span>Comederos limp.</span><span class="v ${sc(x.limpCom)}">${x.limpCom||'—'}</span></div>
+        <div class="ri"><span>Comida</span><span class="v ${sc(x.comComida)}">${x.comComida||'—'}</span></div>
+        <div class="ri"><span>Remanente</span><span class="v">${x.rem||'—'}</span></div>
+        ${avg?`<div class="ri" style="font-weight:700"><span>Score</span><span class="v ${sc(avg)}">${avg}</span></div>`:''}
+        ${x.notas?`<div class="nb">📝 ${x.notas}</div>`:''}
+      </div>`;
+    });
+  }
+  if(c.notas)h+=`<div class="nb">📝 ${c.notas}</div>`;
+  h+=`</div></div>`;
+
+  // Recría
+  if(rc.corrales.length){
+    h+=`<div class="cd"><div class="ch"><h3>🐂 Recría</h3></div><div class="cb">`;
+    rc.corrales.forEach(x=>{
+      const dof=dy(x.fi,D.vDate);
+      const vals=[x.bostas,x.limpBeb,x.limpAlim,x.basura,x.toses,x.aspecto].filter(Boolean);
+      const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):null;
+      h+=`<div class="rs"><h4>Corral ${x.id||'?'} ${dof!==null?`<span style="font-weight:400;font-size:10px;color:var(--acd)">— DOF:${dof}d</span>`:''}</h4>
+        ${x.cant?`<div class="ri"><span>Animales</span><span class="v">${x.cant}</span></div>`:''}
+        <div class="ri"><span>Bostas</span><span class="v ${sc(x.bostas)}">${x.bostas||'—'}</span></div>
+        <div class="ri"><span>Bebida</span><span class="v ${sc(x.limpBeb)}">${x.limpBeb||'—'}</span></div>
+        <div class="ri"><span>Alimento</span><span class="v ${sc(x.limpAlim)}">${x.limpAlim||'—'}</span></div>
+        <div class="ri"><span>Basura</span><span class="v ${sc(x.basura)}">${x.basura||'—'}</span></div>
+        <div class="ri"><span>Toses</span><span class="v ${sc(x.toses)}">${x.toses||'—'}</span></div>
+        <div class="ri"><span>Aspecto</span><span class="v ${sc(x.aspecto)}">${x.aspecto||'—'}</span></div>
+        ${(x.com&&x.com.length)?`<div class="ri"><span>Comederos(${x.com.length})</span><span class="v">${x.com.filter(Boolean).join(', ')}</span></div>`:''}
+        ${avg?`<div class="ri" style="font-weight:700"><span>Score</span><span class="v ${sc(avg)}">${avg}</span></div>`:''}
+        ${x.notas?`<div class="nb">📝 ${x.notas}</div>`:''}
+      </div>`;
+    });
+    if(rc.notas)h+=`<div class="nb">📝 ${rc.notas}</div>`;
+    h+=`</div></div>`;
+  }
+
+  // Clínica
+  if(D.clinica.length){
+    h+=`<div class="cd"><div class="ch"><h3>💉 Clínica</h3></div><div class="cb"><div class="rs"><h4>Registros (${D.clinica.length})</h4>
+      ${D.clinica.map(c=>`<div class="ri"><span>${c.caravana||'?'}</span><span class="v">${c.diag||'—'} → ${c.trat||'—'}</span></div>`).join('')}
+    </div></div></div>`;
+  }
+
+  // Prácticas
+  const hasP=Object.values(pr).some(Boolean);
+  if(hasP){
+    h+=`<div class="cd"><div class="ch"><h3>📋 Prácticas</h3></div><div class="cb">
+      ${pr.desleche?`<div class="rs"><h4>Desleche</h4><div class="nb">${pr.desleche}</div></div>`:''}
+      ${pr.planAlim?`<div class="rs"><h4>Alimentación</h4><div class="nb">${pr.planAlim}</div></div>`:''}
+      ${pr.protoSan?`<div class="rs"><h4>Sanitario</h4><div class="nb">${pr.protoSan}</div></div>`:''}
+      ${pr.regMort?`<div class="rs"><h4>Mortalidad</h4><div class="nb">${pr.regMort}</div></div>`:''}
+      ${pr.notas?`<div class="rs"><h4>Notas</h4><div class="nb">${pr.notas}</div></div>`:''}
+    </div></div>`;
+  }
+  h+=`<p style="text-align:center;font-size:9px;color:var(--t3);margin-top:6px">Desarrollo: Darío Caffarena © ${new Date().getFullYear()}</p>`;
+  return h;
+}
+
+// ═══ HISTORIAL ═══
+function rHist(){
+  const h=lH();
+  if(!h.length)return `<div class="cd"><div class="cb" style="padding:14px;text-align:center;color:var(--t3);font-size:13px">No hay reportes guardados.</div></div>`;
+  return `<div class="cd"><div class="ch"><h3>💾 Reportes (${h.length})</h3></div><div class="cb">
+    ${h.map((r,i)=>`<div class="hi"><div class="inf"><strong>${r.farm||'—'}</strong><br>${r.date} · Score: ${r.score||'—'}</div>
+    <div class="hb"><button onclick="loadR(${i})">Cargar</button><button onclick="expHP(${i})">PDF</button><button onclick="expHX(${i})">Excel</button><button onclick="delR(${i})" style="color:var(--dn)">✕</button></div></div>`).join('')}
+  </div></div>`;
+}
+
+// ═══ NAV ═══
+function go(id){D.tab=id;R();window.scrollTo(0,0)}
+function tg(el){const b=el.nextElementSibling,a=el.querySelector('.ar');if(b.style.display==='none'){b.style.display='block';a&&a.classList.add('o')}else{b.style.display='none';a&&a.classList.remove('o')}}
+
+// ═══ SAVE & EXPORT ═══
+function saveR(){const h=lH();h.unshift({ts:Date.now(),date:D.vDate,farm:D.farm,score:allS(),data:JSON.parse(JSON.stringify(D))});if(h.length>50)h.length=50;sH(h);alert('✅ Guardado')}
+
+function showExp(){
+  const m=document.createElement('div');m.className='modal-bg';m.id='exp-modal';
+  m.innerHTML=`<div class="modal"><h3>Exportar Reporte</h3>
+    <button class="btn bp" onclick="closeModal();xPDF()">📄 PDF</button>
+    <button class="btn be" onclick="closeModal();xXLSX()">📊 Excel</button>
+    <button class="btn" style="background:var(--t2);color:#fff" onclick="closeModal();xCSV()">📋 CSV</button>
+    ${D.clinica.length?`<button class="btn" style="background:#6C63FF;color:#fff" onclick="closeModal();xClinXLSX()">💉 Clínica Excel</button>`:''}
+    <button class="btn bs" onclick="closeModal()">Cancelar</button>
+  </div>`;
+  m.addEventListener('click',e=>{if(e.target===m)closeModal()});
+  document.body.appendChild(m);
+}
+
+function closeModal(){const m=document.getElementById('exp-modal');if(m)m.remove()}
+
+function bR(d){
+  const r=[];const a=(s,i,v)=>r.push({Sección:s,Ítem:i,Valor:String(v||'—')});
+  a('General','Fecha',d.vDate);a('General','Establecimiento',d.farm);a('General','Auditor',d.aud);a('General','Sistema',d.sys);a('General','Score',allS());
+  if(d.sys==='mixto'&&d.edadCambio)a('General','Edad cambio ind→col',d.edadCambio+'d');
+  const p=d.preparto;
+  a('Preparto','Limp. área',p.limpArea);a('Preparto','Cond. corp.',p.condCorp);
+  ['recol','almac','descong','admin'].forEach(k=>a('Calostro',k,p.proto[k]));
+  if(p.tCal)a('Calostro','Tiempo',p.tCal);if(p.vCal)a('Calostro','Volumen',p.vCal);if(p.qCal)a('Calostro','Calidad',p.qCal);
+  a('Preparto Almac.','Materiales',p.almMat);a('Preparto Almac.','Medicamentos',p.almMed);
+  Object.entries(CK).forEach(([k,l])=>a('Primeros Cuidados',l,p.checks[k]?'Sí':'No'));
+  if(p.notas)a('Preparto','Notas',p.notas);
+  // Tiempos
+  const t=d.tiempos;if(t.calostrar)a('Tiempos','Calostrar',t.calostrar+' min');
+  if(t.descongelar)a('Tiempos','Descongelar',t.descongelar+' min');
+  if(t.llevarAnimal)a('Tiempos','Llevar animales',t.llevarAnimal+' min');
+  if(t.buscarLeche)a('Tiempos','Buscar leche',t.buscarLeche+' min');
+  if(t.alimentarIndiv)a('Tiempos','Alimentar 1 ternero',t.alimentarIndiv+' min');
+  if(t.alimentarCorral)a('Tiempos','Alimentar corral',t.alimentarCorral+' min');
+  if(t.otros)a('Tiempos','Otros',t.otros);
+  // Dieta
+  const dl=d.dietaLiq;a('Dieta','Tipo',dl.tipo);if(dl.concReconst)a('Dieta','Reconstitución',dl.concReconst);
+  dl.tomas.forEach((tm,i)=>a('Dieta','Sem '+tm.semDesde+'-'+tm.semHasta,tm.vecesDia+'x/día'+(tm.volToma?' '+tm.volToma+'L':'')));
+  if(dl.notas)a('Dieta','Notas',dl.notas);
+  // Crianza indiv
+  const c=d.crianza;
+  if(d.sys!=='colectivo')c.animales.forEach(x=>{const l='Indiv. '+x.id;a(l,'Ubicación',x.ubic);a(l,'Lugar',x.limpLugar);a(l,'B.leche',x.limpBalLeche);a(l,'B.ración',x.limpBalRac);a(l,'Agua',x.agua===1?'Sí':x.agua===3?'No':'—');if(x.notas)a(l,'Notas',x.notas)});
+  a('Crianza Mat.','Tetineras',c.limpTet);a('Crianza Mat.','Baldes',c.limpBal);a('Crianza Mat.','Tanque',c.limpTan);a('Crianza Mat.','Mangueras',c.limpMang);
+  a('Crianza Almac.','Mat.alim',c.almMatAlim);a('Crianza Almac.','Medicam.',c.almMed);
+  if(d.sys!=='individual')c.corrales.forEach(x=>{const l='Corral '+x.id;const age=dy(x.fc,d.vDate);a(l,'Edad',age!==null?age+'d':'—');a(l,'Terneros',x.cant);a(l,'Limpieza',x.limp);a(l,'Agua',x.agua);a(l,'Cama',x.cama);a(l,'Comed.limp',x.limpCom);a(l,'Comed.comida',x.comComida);a(l,'Remanente',x.rem);if(x.notas)a(l,'Notas',x.notas)});
+  if(c.notas)a('Crianza','Notas',c.notas);
+  // Recría
+  d.recria.corrales.forEach(x=>{const l='Recría '+x.id;const dof=dy(x.fi,d.vDate);a(l,'DOF',dof!==null?dof+'d':'—');a(l,'Animales',x.cant);a(l,'Bostas',x.bostas);a(l,'Bebida',x.limpBeb);a(l,'Alimento',x.limpAlim);a(l,'Basura',x.basura);a(l,'Toses',x.toses);a(l,'Aspecto',x.aspecto);if(x.com&&x.com.length)a(l,'Comederos',x.com.join(', '));if(x.notas)a(l,'Notas',x.notas)});
+  if(d.recria.notas)a('Recría','Notas',d.recria.notas);
+  // Clínica
+  d.clinica.forEach(x=>a('Clínica',x.caravana||'?',x.diag+' → '+x.trat));
+  // Prácticas
+  const pr=d.practicas;if(pr.desleche)a('Prácticas','Desleche',pr.desleche);if(pr.planAlim)a('Prácticas','Alimentación',pr.planAlim);if(pr.protoSan)a('Prácticas','Sanitario',pr.protoSan);if(pr.regMort)a('Prácticas','Mortalidad',pr.regMort);if(pr.notas)a('Prácticas','Notas',pr.notas);
+  return r;
+}
+
+async function xPDF(){await doP(D)}
+async function expHP(i){const h=lH();if(h[i])await doP(h[i].data)}
+async function doP(d){
+  try{
+    await loadPDFLibs();
+    const{jsPDF}=window.jspdf;const doc=new jsPDF();
+    doc.setFontSize(16);doc.text('Recorrida Crianza & Recría',14,18);
+    doc.setFontSize(8);doc.setTextColor(100);doc.text('Desarrollo: Darío Caffarena — '+d.vDate,14,24);doc.setTextColor(0);
+    const rows=bR(d);
+    doc.autoTable({startY:30,head:[['Sección','Ítem','Valor']],body:rows.map(r=>[r.Sección,r.Ítem,r.Valor]),styles:{fontSize:7,cellPadding:1.5},headStyles:{fillColor:[27,94,59]},alternateRowStyles:{fillColor:[244,241,236]},columnStyles:{0:{cellWidth:38},1:{cellWidth:50}}});
+    doc.save(`Recorrida_${d.farm||'campo'}_${d.vDate}.pdf`);
+  }catch(e){alert('Error al generar PDF: '+e.message+'. Verificá tu conexión a internet.')}
+}
+
+async function xXLSX(){await doX(D)}
+async function expHX(i){const h=lH();if(h[i])await doX(h[i].data)}
+async function doX(d){
+  try{
+    await loadXLSXLib();
+    const rows=bR(d);const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:20},{wch:28},{wch:22}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Reporte');
+    XLSX.writeFile(wb,`Recorrida_${d.farm||'campo'}_${d.vDate}.xlsx`);
+  }catch(e){alert('Error al generar Excel: '+e.message+'. Verificá tu conexión a internet.')}
+}
+
+function xCSV(){
+  const rows=bR(D);let csv='\uFEFFSección,Ítem,Valor\n';
+  rows.forEach(r=>csv+=`"${r.Sección}","${r.Ítem}","${r.Valor}"\n`);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`Recorrida_${D.farm||'campo'}_${D.vDate}.csv`;a.click();
+}
+
+async function xClinXLSX(){
+  try{
+    await loadXLSXLib();
+    const rows=D.clinica.map(c=>({Caravana:c.caravana,Diagnóstico:c.diag,Tratamiento:c.trat,Notas:c.notas||''}));
+    const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=[{wch:14},{wch:24},{wch:24},{wch:20}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Clínica');
+    XLSX.writeFile(wb,`Clinica_${D.farm||'campo'}_${D.vDate}.xlsx`);
+  }catch(e){alert('Error al generar Excel Clínica: '+e.message)}
+}
+
+function loadR(i){const h=lH();if(!h[i])return;Object.assign(D,JSON.parse(JSON.stringify(h[i].data)));D.tab='reporte';R();window.scrollTo(0,0)}
+function delR(i){if(!confirm('¿Eliminar?'))return;const h=lH();h.splice(i,1);sH(h);R()}
+
+R();
+</script>
+</body>
+</html>
