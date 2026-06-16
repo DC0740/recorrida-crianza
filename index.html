@@ -3,16 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrida Crianza & Recría v4</title>
+<title>Recorrida Crianza & Recría v5</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@0,600;0,700;0,800&display=swap" rel="stylesheet">
 <script>
 // Lazy-load libraries on demand to avoid timing/blocking issues
 const LIB_URLS={
-  jspdf:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  autotable:'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js',
   xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 };
-const libLoaded={jspdf:false,autotable:false,xlsx:false};
+const libLoaded={xlsx:false};
 function loadLib(name){
   return new Promise((res,rej)=>{
     if(libLoaded[name])return res();
@@ -22,7 +20,6 @@ function loadLib(name){
     document.head.appendChild(s);
   });
 }
-async function loadPDFLibs(){await loadLib('jspdf');await loadLib('autotable')}
 async function loadXLSXLib(){await loadLib('xlsx')}
 </script>
 <style>
@@ -109,6 +106,35 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-h
 .atbl th{background:var(--pr);color:#fff;padding:5px 6px;text-align:left;font-weight:600;font-size:10px}
 .atbl td{padding:5px 6px;border-bottom:1px solid var(--bl)}
 .atbl input,.atbl select{font-size:11px;padding:4px 6px;border:1px solid var(--bd);border-radius:4px;background:var(--bg);font-family:inherit;width:100%}
+
+/* ═══ PRINT / PDF VISUAL ═══ */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .hdr,.tw,.bar,.sp,.modal-bg{display:none!important}
+  body{background:#fff!important;font-family:'DM Sans',sans-serif}
+  .ct{padding:8px!important;max-width:100%!important}
+  .cd{break-inside:avoid;page-break-inside:avoid;box-shadow:none!important;border:1px solid #ddd!important;margin-bottom:10px!important}
+  .rs{break-inside:avoid;page-break-inside:avoid}
+  /* Score bar */
+  .ss{background:linear-gradient(135deg,#0D3B22,#1B5E3B)!important;-webkit-print-color-adjust:exact!important}
+  .sbr.g{background:#52B788!important}.sbr.w{background:#E9A820!important}.sbr.b{background:#E5383B!important}
+  /* Score colors */
+  .ri .v.g{color:#1B5E3B!important}.ri .v.w{color:#E6A117!important}.ri .v.b{color:#B71C1C!important}
+  .rs{border-left:3px solid #1B5E3B!important}
+  /* Score buttons in report */
+  .sb.s1{background:#D4EDDA!important;border-color:#1B5E3B!important}
+  .sb.s1 .n{color:#1B5E3B!important}
+  .sb.s2{background:#FFF8E1!important;border-color:#E6A117!important}
+  .sb.s2 .n{color:#E6A117!important}
+  .sb.s3{background:#FDECEA!important;border-color:#B71C1C!important}
+  .sb.s3 .n{color:#B71C1C!important}
+  .nb{background:#f5f5f5!important}
+  /* Print header */
+  .print-hdr{display:block!important}
+}
+.print-hdr{display:none;padding:14px 0 10px;border-bottom:2px solid #1B5E3B;margin-bottom:12px}
+.print-hdr h2{font-family:'Fraunces',serif;color:#1B5E3B;font-size:18px;margin:0}
+.print-hdr p{font-size:10px;color:#777;margin:2px 0 0}
 </style>
 </head>
 <body>
@@ -218,7 +244,7 @@ function R(){
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <h1>🐄 Recorrida Crianza & Recría</h1>
-      <div class="sub">Auditoría de campo v3</div>
+      <div class="sub">Auditoría de campo v5</div>
       <div class="hdr-m">
         <span class="bg">📅 ${D.vDate}</span>${D.farm?`<span class="bg">🏠 ${D.farm}</span>`:''}
         <span class="bg">${{individual:'🏠 Indiv.',colectivo:'👥 Colect.',mixto:'🔄 Mixto'}[D.sys]}</span>
@@ -227,7 +253,7 @@ function R(){
         <div class="as"><span class="dot"></span><span id="as-txt">${D._lastSaved?'Auto-guardado '+D._lastSaved:'Guardado auto activo'}</span></div>
         <button class="nvbtn" onclick="nuevaVisita()">+ Nueva visita</button>
       </div>
-      <div class="auth">Desarrollo: Darío Caffarena © ${new Date().getFullYear()} · v4</div>
+      <div class="auth">Desarrollo: Darío Caffarena © ${new Date().getFullYear()} · v5</div>
     </div>
     <div class="tw"><div class="ts">${TABS.map(t=>`<button class="t ${D.tab===t.id?'a':''}" onclick="go('${t.id}')">${t.l}</button>`).join('')}</div></div>
     <div class="ct fi">${rT()}</div><div class="sp"></div>${rB()}`;
@@ -471,7 +497,10 @@ function rRep(){
   const p=D.preparto,c=D.crianza,rc=D.recria,pr=D.practicas,t=D.tiempos,dl=D.dietaLiq;
   const ckD=Object.values(p.checks).filter(Boolean).length,ckT=Object.keys(p.checks).length;
 
-  let h=`<div class="ss"><div class="big">${ov||'—'}</div><div class="lbl">Score General — ${ov?sl(ov):'Sin datos'}</div><div class="sbc"><div class="sbr ${sc(ov)}" style="width:${pct}%"></div></div></div>`;
+  // Print header — only visible when printing
+  let h=`<div class="print-hdr"><h2>🐄 Recorrida Crianza & Recría</h2><p>${D.farm||''}${D.farm&&D.vDate?' · ':''}${D.vDate}${D.aud?' · Auditor: '+D.aud:''} · Score: ${ov||'—'} (${ov?sl(ov):'Sin datos'})</p></div>`;
+
+  h+=`<div class="ss"><div class="big">${ov||'—'}</div><div class="lbl">Score General — ${ov?sl(ov):'Sin datos'}</div><div class="sbc"><div class="sbr ${sc(ov)}" style="width:${pct}%"></div></div></div>`;
 
   // Info
   h+=`<div class="cd"><div class="ch"><h3>📋 Visita</h3></div><div class="cb">
@@ -638,9 +667,9 @@ function saveR(){const h=lH();h.unshift({ts:Date.now(),date:D.vDate,farm:D.farm,
 function showExp(){
   const m=document.createElement('div');m.className='modal-bg';m.id='exp-modal';
   m.innerHTML=`<div class="modal"><h3>Exportar Reporte</h3>
-    <button class="btn bp" onclick="closeModal();xPDF()">📄 PDF</button>
-    <button class="btn be" onclick="closeModal();xXLSX()">📊 Excel</button>
-    <button class="btn" style="background:var(--t2);color:#fff" onclick="closeModal();xCSV()">📋 CSV</button>
+    <button class="btn bp" onclick="closeModal();xPDF()">📄 PDF Visual (como pantalla)</button>
+    <button class="btn be" onclick="closeModal();xXLSX()">📊 Excel (datos)</button>
+    <button class="btn" style="background:var(--t2);color:#fff" onclick="closeModal();xCSV()">📋 CSV (datos)</button>
     ${D.clinica.length?`<button class="btn" style="background:#6C63FF;color:#fff" onclick="closeModal();xClinXLSX()">💉 Clínica Excel</button>`:''}
     <button class="btn bs" onclick="closeModal()">Cancelar</button>
   </div>`;
@@ -690,18 +719,31 @@ function bR(d){
   return r;
 }
 
-async function xPDF(){await doP(D)}
-async function expHP(i){const h=lH();if(h[i])await doP(h[i].data)}
-async function doP(d){
-  try{
-    await loadPDFLibs();
-    const{jsPDF}=window.jspdf;const doc=new jsPDF();
-    doc.setFontSize(16);doc.text('Recorrida Crianza & Recría',14,18);
-    doc.setFontSize(8);doc.setTextColor(100);doc.text('Desarrollo: Darío Caffarena — '+d.vDate,14,24);doc.setTextColor(0);
-    const rows=bR(d);
-    doc.autoTable({startY:30,head:[['Sección','Ítem','Valor']],body:rows.map(r=>[r.Sección,r.Ítem,r.Valor]),styles:{fontSize:7,cellPadding:1.5},headStyles:{fillColor:[27,94,59]},alternateRowStyles:{fillColor:[244,241,236]},columnStyles:{0:{cellWidth:38},1:{cellWidth:50}}});
-    doc.save(`Recorrida_${d.farm||'campo'}_${d.vDate}.pdf`);
-  }catch(e){alert('Error al generar PDF: '+e.message+'. Verificá tu conexión a internet.')}
+// ═══ PDF VISUAL (imprime el reporte como se ve en pantalla) ═══
+function xPDF(){xPrintPDF(null)}
+
+function expHP(i){
+  const h=lH();if(!h[i])return;
+  xPrintPDF(h[i].data);
+}
+
+function xPrintPDF(d){
+  // Save current state
+  const snap=JSON.parse(JSON.stringify(D));
+  // If loading historical data, apply it
+  if(d){Object.keys(d).forEach(k=>{D[k]=d[k]});}
+  // Switch to report tab
+  D.tab='reporte';
+  R();
+  // Small delay so render completes, then print
+  setTimeout(()=>{
+    window.print();
+    // After print dialog closes, restore state
+    setTimeout(()=>{
+      Object.keys(snap).forEach(k=>{D[k]=snap[k]});
+      R();
+    },800);
+  },250);
 }
 
 async function xXLSX(){await doX(D)}
@@ -737,6 +779,8 @@ function delR(i){if(!confirm('¿Eliminar?'))return;const h=lH();h.splice(i,1);sH
 
 // Init: restore any autosaved draft, then render
 loadDraft();
+// Save right before page closes/reloads (extra safety net)
+window.addEventListener('beforeunload',()=>saveDraft());
 R();
 </script>
 </body>
