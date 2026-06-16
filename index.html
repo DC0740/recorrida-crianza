@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Recorrida Crianza & Recría v3</title>
+<title>Recorrida Crianza & Recría v4</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@0,600;0,700;0,800&display=swap" rel="stylesheet">
 <script>
 // Lazy-load libraries on demand to avoid timing/blocking issues
@@ -99,6 +99,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-h
 .modal h3{font-family:'Fraunces',serif;margin-bottom:12px;font-size:16px}
 .modal .btn{display:block;width:100%;margin-bottom:6px}
 @keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.fi{animation:fi .2s ease}
+.as{font-size:9px;color:rgba(255,255,255,.55);margin-top:4px;display:flex;align-items:center;gap:5px}
+.as .dot{width:5px;height:5px;border-radius:50%;background:#52B788;display:inline-block}
+.nvbtn{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit}
+.nvbtn:active{background:rgba(255,255,255,.25)}
 
 /* Animal clinical record table */
 .atbl{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
@@ -172,8 +176,45 @@ function allS(){
 function lH(){try{return JSON.parse(localStorage.getItem('rc_h3')||'[]')}catch{return[]}}
 function sH(h){localStorage.setItem('rc_h3',JSON.stringify(h))}
 
+// ─── AUTO-SAVE DRAFT ───
+const DRAFT_KEY='rc_draft4';
+function saveDraft(){
+  try{
+    const now=new Date();
+    const ts=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+    D._lastSaved=ts;
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(D));
+  }catch(e){console.warn('AutoSave error:',e)}
+}
+function loadDraft(){
+  try{
+    const raw=localStorage.getItem(DRAFT_KEY);
+    if(!raw)return false;
+    const saved=JSON.parse(raw);
+    // Merge saved into D preserving any new keys added in future versions
+    Object.keys(saved).forEach(k=>{D[k]=saved[k]});
+    return true;
+  }catch(e){return false}
+}
+function nuevaVisita(){
+  if(!confirm('¿Comenzar una nueva visita? Se perderán los datos actuales si no los guardaste en Historial.'))return;
+  localStorage.removeItem(DRAFT_KEY);
+  // Reset D to defaults
+  D.tab='config';D.vDate=new Date().toISOString().split('T')[0];D.farm='';D.aud='';D.sys='colectivo';
+  D.edadCambio='';D._lastSaved='';
+  D.preparto={limpArea:0,condCorp:0,proto:{recol:0,almac:0,descong:0,admin:0},tCal:'',vCal:'',qCal:'',almMat:0,almMed:0,checks:{desinfOmb:false,ident:false,peso:false,regNac:false,vigor:false,secado:false},notas:''};
+  D.tiempos={calostrar:'',descongelar:'',llevarAnimal:'',buscarLeche:'',alimentarIndiv:'',alimentarCorral:'',otros:''};
+  D.dietaLiq={tipo:'leche',concReconst:'',tomas:[{semDesde:1,semHasta:4,vecesDia:2,volToma:''},{semDesde:5,semHasta:8,vecesDia:1,volToma:''}],notas:''};
+  D.crianza={animales:[],corrales:[],limpTet:0,limpBal:0,limpTan:0,limpMang:0,almMatAlim:0,almMed:0,notas:''};
+  D.recria={corrales:[],notas:''};
+  D.practicas={desleche:'',planAlim:'',protoSan:'',regMort:'',notas:''};
+  D.clinica=[];
+  R();window.scrollTo(0,0);
+}
+
 // ═══ RENDER ═══
 function R(){
+  saveDraft();
   document.getElementById('app').innerHTML=`
     <div class="hdr">
       <h1>🐄 Recorrida Crianza & Recría</h1>
@@ -182,7 +223,11 @@ function R(){
         <span class="bg">📅 ${D.vDate}</span>${D.farm?`<span class="bg">🏠 ${D.farm}</span>`:''}
         <span class="bg">${{individual:'🏠 Indiv.',colectivo:'👥 Colect.',mixto:'🔄 Mixto'}[D.sys]}</span>
       </div>
-      <div class="auth">Desarrollo: Darío Caffarena © ${new Date().getFullYear()}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+        <div class="as"><span class="dot"></span><span id="as-txt">${D._lastSaved?'Auto-guardado '+D._lastSaved:'Guardado auto activo'}</span></div>
+        <button class="nvbtn" onclick="nuevaVisita()">+ Nueva visita</button>
+      </div>
+      <div class="auth">Desarrollo: Darío Caffarena © ${new Date().getFullYear()} · v4</div>
     </div>
     <div class="tw"><div class="ts">${TABS.map(t=>`<button class="t ${D.tab===t.id?'a':''}" onclick="go('${t.id}')">${t.l}</button>`).join('')}</div></div>
     <div class="ct fi">${rT()}</div><div class="sp"></div>${rB()}`;
@@ -687,9 +732,11 @@ async function xClinXLSX(){
   }catch(e){alert('Error al generar Excel Clínica: '+e.message)}
 }
 
-function loadR(i){const h=lH();if(!h[i])return;Object.assign(D,JSON.parse(JSON.stringify(h[i].data)));D.tab='reporte';R();window.scrollTo(0,0)}
+function loadR(i){const h=lH();if(!h[i])return;Object.assign(D,JSON.parse(JSON.stringify(h[i].data)));D.tab='reporte';saveDraft();R();window.scrollTo(0,0)}
 function delR(i){if(!confirm('¿Eliminar?'))return;const h=lH();h.splice(i,1);sH(h);R()}
 
+// Init: restore any autosaved draft, then render
+loadDraft();
 R();
 </script>
 </body>
